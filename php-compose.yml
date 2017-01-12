@@ -1,0 +1,11 @@
+application:
+  build: .
+  environment:
+    SYMFONY__DATABASE_USER: root
+    SYMFONY__DATABASE_NAME: salon
+    SYMFONY__DATABASE_PASSWORD: paulaan
+    SYMFONY__DATABASE_DRIVER: pdo_mysql
+    SYMFONY__DATABASE_HOST: mysql
+    SYMFONY__DATABASE_PORT: ""
+    APPLICATION_ENV: "prod"
+    APPLICATION_LIVE: 1

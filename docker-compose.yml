@@ -1,0 +1,177 @@
+sources:
+  build: images/sources
+  volumes:
+    - .:/var/www/html/apps
+
+rabbitmq:
+  image: rabbitmq:3-management
+  environment:
+    RABBITMQ_DEFAULT_USER: paulaan
+    RABBITMQ_DEFAULT_PASS: "@86"
+  ports:
+    - "15672:15672"
+
+database:
+  build: images/sources
+
+mongo:
+  image: mongo:latest
+  ports:
+    - "27017:27017"
+  environment:
+    MONGODB_PASS: paulaan86
+    MONGODB_USER: paulaan
+    MONGODB_DATABASE: messages
+
+
+#message:
+#  build: images/nodejs
+#  entrypoint: "/start.sh"
+#  volumes_from:
+#      - sources
+#  working_dir: /var/www/html/apps/chatbot
+#  ports:
+#      - "8888:8888"
+#  links:
+#    - mongo
+#    - redis
+#    - mysql
+php:
+  extends:
+    file: php-compose.yml
+    service: application
+  volumes_from:
+      - sources
+  entrypoint: "/run.sh"
+  links:
+    - rabbitmq
+    - mongo
+    - cache
+    - redis
+    - mysql
+    - elasticsearch
+  environment:
+    APPLICATION_LIVE: 0
+    SYMFONY__CDN_VERSION: 123512341325987
+    SYMFONY__CDN: //salon.iz
+    SYMFONY__MONGO_SERVER: mongo
+    SYMFONY__WAVECELL_ACCOUNT: apps
+    SYMFONY__WAVECELL_SUB_ACCOUNT: apps_std
+    SYMFONY__WAVECELL_PASSWORD: Tisaigon86
+phpslaver:
+  extends:
+    file: php-compose.yml
+    service: application
+  volumes_from:
+      - sources
+  entrypoint: "/slaver.sh"
+  links:
+    - rabbitmq
+    - mongo
+    - cache
+    - redis
+    - mysql
+    - elasticsearch
+  environment:
+    APPLICATION_LIVE: 0
+    SYMFONY__CDN_VERSION: 123512341325987
+    SYMFONY__CDN: //salon.iz
+    SYMFONY__MONGO_SERVER: mongo
+    SYMFONY__WAVECELL_ACCOUNT: apps
+    SYMFONY__WAVECELL_SUB_ACCOUNT: apps_std
+    SYMFONY__WAVECELL_PASSWORD: Tisaigon86
+
+cron:
+  extends:
+    file: php-compose.yml
+    service: application
+  volumes_from:
+      - sources
+  working_dir: /var/www/html/apps
+  entrypoint: "/cron.sh"
+  links:
+    - rabbitmq
+    - mongo
+    - cache
+    - redis
+    - mysql
+    - elasticsearch
+    - nginx
+#    - behat
+  environment:
+    XDEBUG_CONFIG: remote_host=192.168.99.100
+    APPLICATION_LIVE: 0
+    SYMFONY__CDN_VERSION: 123512341325987
+    SYMFONY__CDN: //salon.iz
+    SYMFONY__MONGO_SERVER: mongo
+    SYMFONY__WAVECELL_ACCOUNT: apps
+    SYMFONY__WAVECELL_SUB_ACCOUNT: apps_std
+    SYMFONY__WAVECELL_PASSWORD: Tisaigon86
+    SYMFONY__SCHEME: http
+
+cache:
+  image: memcached
+  ports:
+    - "11211:11211"
+    - "9030:9000"
+
+redis:
+  image: redis
+  ports:
+    - "6379:6379"
+
+elasticsearch:
+  build: images/elasticsearch
+  ports:
+    - "9200:9200"
+    - "9300:9300"
+logstash:
+  image: logstash:latest
+  command: logstash -f /etc/logstash/conf.d/logstash.conf
+  volumes:
+    - ./images/logstash/config:/etc/logstash/conf.d
+  ports:
+    - "5000:5000"
+  links:
+    - elasticsearch
+kibana:
+  build: images/kibana
+  volumes:
+    - ./images/kibana/config/:/opt/kibana/config/
+  ports:
+    - "5601:5601"
+  links:
+    - elasticsearch
+
+mysql:
+  build: images/percona
+  hostname: db_master
+  ports:
+      - "3308:3306"
+  environment:
+    MYSQL_ROOT_PASSWORD: paulaan
+    MYSQL_DATABASE: salon
+    MYSQL_USER: apps
+    MYSQL_PASSWORD: salon
+
+nginx:
+  build: images/nginx
+  volumes_from:
+    - sources
+    - phpslaver
+    - php
+  command: nginx -g "daemon off;"
+  links:
+    - phpslaver
+    - php
+    - sources
+#    - trainer
+  ports:
+    - "80:88"
+    - "443:443"
+
+#
+#behat:
+#  image: selenium/standalone-chrome
+#  links:
+#    - nginx
